@@ -43,9 +43,7 @@ void Key_Init(void)
 void Key_Tick(void)
 {
     for (int i = 0; i < sizeof(pins) / sizeof(pins[0]); i++)
-    {
         debounce(&pins[i]); // 对每个按键进行消抖处理
-    }
 }
 
 // 获取按键状态（支持三种状态：松开、按下、长按）
