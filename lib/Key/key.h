@@ -7,6 +7,13 @@
 #define UP_PIN 5
 #define DOWN_PIN 9
 
+enum KEY_STATE
+{
+    KEY_RELEASE = 0, // 未按下
+    KEY_PRESS, // 按下
+    KEY_LONG_PRESS, // 一直长按
+};
+
 typedef struct
 {
     uint16_t pin;               // 按键引脚编号
@@ -20,7 +27,7 @@ typedef struct
 
 void Key_Init(void);
 
-uint8_t getKeyState(uint8_t pin);
+KEY_STATE getKeyState(uint8_t pin);
 
 #endif
 

@@ -6,8 +6,7 @@ Ticker KeyTick;
 DebounceInfo pins[] = {
     {ENTER_PIN, HIGH, HIGH, HIGH, 0, 0}, // 初始化为未按下状态
     {UP_PIN, HIGH, HIGH, HIGH, 0, 0},
-    {DOWN_PIN, HIGH, HIGH, HIGH, 0, 0}
-};
+    {DOWN_PIN, HIGH, HIGH, HIGH, 0, 0}};
 
 // 消抖函数
 void debounce(DebounceInfo *info)
@@ -17,16 +16,16 @@ void debounce(DebounceInfo *info)
 
     if (current != info->last_state) // 如果状态发生变化
     {
-        info->last_state = current;          // 更新上一次状态
-        info->last_check_time = now;         // 记录变化时间
-        info->debouncing = 1;                // 标记为正在消抖
+        info->last_state = current;  // 更新上一次状态
+        info->last_check_time = now; // 记录变化时间
+        info->debouncing = 1;        // 标记为正在消抖
         return;
     }
 
     if (info->debouncing && (now - info->last_check_time) >= DEBOUNCE_DELAY)
     {
-        info->stable_state = current;       // 更新稳定状态
-        info->debouncing = 0;               // 消抖完成
+        info->stable_state = current; // 更新稳定状态
+        info->debouncing = 0;         // 消抖完成
     }
 }
 void Key_Tick(void);
@@ -49,22 +48,33 @@ void Key_Tick(void)
     }
 }
 
-// 获取按键状态（直到松开才更新）
-uint8_t getKeyState(uint8_t pin)
+// 获取按键状态（支持三种状态：松开、按下、长按）
+KEY_STATE getKeyState(uint8_t pin)
 {
     for (int i = 0; i < sizeof(pins) / sizeof(pins[0]); i++)
     {
         if (pins[i].pin == pin) // 找到对应的按键
         {
-            // 检测按键是否从按下变为松开
-            if (pins[i].last_stable_state == LOW && pins[i].stable_state == HIGH)
+            // 检测按键是否从松开变为按下
+            if (pins[i].stable_state == LOW && pins[i].last_stable_state == HIGH)
             {
                 pins[i].last_stable_state = pins[i].stable_state; // 更新状态
-                return 1; // 返回按键松开事件
+                return KEY_PRESS; // 返回按键按下的事件
             }
-            pins[i].last_stable_state = pins[i].stable_state; // 更新状态
-            return 0; // 按键未松开
+            // 检测按键是否从按下变为松开
+            if (pins[i].stable_state == HIGH && pins[i].last_stable_state == LOW)
+            {
+                pins[i].last_stable_state = pins[i].stable_state;
+                return KEY_RELEASE;
+            }
+            // 检测按键是否处于长按状态
+            if (pins[i].stable_state == LOW && (millis() - pins[i].last_check_time > 1000))
+            {
+                return KEY_LONG_PRESS;
+            }
+            // 默认返回松开状态
+            return KEY_RELEASE;
         }
     }
-    return 2; // 如果未找到对应按键，返回错误值
+    return KEY_RELEASE; // 如果未找到对应按键，默认返回松开状态
 }
