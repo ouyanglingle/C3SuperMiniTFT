@@ -1,5 +1,7 @@
 #include <menu.h>
 #include <WiFi.h>
+#include "math.h"
+
 TFT_eSPI tft = TFT_eSPI();
 TFT_eSprite bf = TFT_eSprite(&tft);
 TFT_eSprite func_bf = TFT_eSprite(&tft);
@@ -22,19 +24,50 @@ struct MenuItem
     int subMenuCount;   // 子菜单数量
 };
 
-// 定义菜单项
+// 定义子菜单项
 MenuItem settingsSubMenu[] = {
     {"Brightness", BLK_config, NULL, 0},
     {"Volume", exampleFunction, NULL, 0},
     {"Language", exampleFunction, NULL, 0},
     {"Time", Date_Time, NULL, 0},
     {"Counter", exampleFunction, NULL, 0},
-    {"Return", Return, NULL, 0}, // 返回上一级菜单
+    {"Return", Return, NULL, 0},
 };
-
+MenuItem HardWareSubMenu[] = {
+    {"UART1", exampleFunction, NULL, 0},
+    {"Wire0", exampleFunction, NULL, 0},
+    {"Wire1", exampleFunction, NULL, 0},
+    {"GPIO", exampleFunction, NULL, 0},
+    {"USB-device", exampleFunction, NULL, 0},
+    {"Return", Return, NULL, 0},
+};
+MenuItem SoftWareSubMenu[] = {
+    {"MQTT", exampleFunction, NULL, 0},
+    {"TCP", exampleFunction, NULL, 0},
+    {"Return", Return, NULL, 0},
+};
+MenuItem DeviceSubMenu[] = {
+    {"Lora-Module", exampleFunction, NULL, 0},
+    {"BY5002-Module", exampleFunction, NULL, 0},
+    {"Wit-IWT603", exampleFunction, NULL, 0},
+    {"Return", Return, NULL, 0},
+};
+// 主菜单项(屏幕最多放只11个菜单项目)
 MenuItem menuItems[] = {
     {"Main Menu", NULL, NULL, 0},
     {"Settings", NULL, settingsSubMenu, sizeof(settingsSubMenu) / sizeof(settingsSubMenu[0])},
+    {"HardWare", NULL, HardWareSubMenu, sizeof(HardWareSubMenu) / sizeof(HardWareSubMenu[0])},
+    {"SoftWare", NULL, SoftWareSubMenu, sizeof(SoftWareSubMenu) / sizeof(SoftWareSubMenu[0])},
+    {"Device & Module", NULL, DeviceSubMenu, sizeof(DeviceSubMenu) / sizeof(DeviceSubMenu[0])},
+    {"Game", NULL, NULL, 0},
+    {"NONE", NULL, NULL, 0},
+    {"NONE", NULL, NULL, 0},
+    {"NONE", NULL, NULL, 0},
+    {"NONE", NULL, NULL, 0},
+    {"NONE", NULL, NULL, 0},
+    {"NONE", NULL, NULL, 0},
+    {"NONE", NULL, NULL, 0},
+    {"NONE", NULL, NULL, 0},
     {"About", about, NULL, 0},
 };
 // ================================
@@ -47,6 +80,8 @@ MenuItem *currentMenu = menuItems;  // 当前菜单指针
 float highlightY = 0;               // 高亮框的 Y 坐标（支持浮点数用于平滑移动）
 uint32_t lastUpdateTime = 0;        // 上一次更新的时间戳
 const uint32_t updateInterval = 10; // 更新间隔（毫秒）
+int startIndex = 0;                 // 当前显示的第一个菜单项索引
+uint8_t maxVisibleItems = 11;       // 屏幕最多显示的菜单项数量
 // ===============================
 //       复选框动画PID参数
 // ===============================
@@ -133,29 +168,26 @@ void func_bf_SwitchAnimate(void)
 void Draw_Menu(void)
 {
     bf.fillSprite(TFT_BLACK); // 清屏
-
-    // 绘制菜单项
-    for (int i = 0; i < (currentMenuLevel == 0 ? sizeof(menuItems) / sizeof(menuItems[0]) : currentMenu->subMenuCount); i++)
+    // 获取当前菜单信息
+    int totalItems = (currentMenuLevel == 0) ? sizeof(menuItems) / sizeof(menuItems[0]) : currentMenu->subMenuCount;
+    // 确保起始索引有效
+    startIndex = constrain(startIndex, 0, max(totalItems - maxVisibleItems, 0));
+    // 绘制可见的菜单项
+    for (int i = 0; i < maxVisibleItems; i++)
     {
-        int yPos = 10 + i * 20; // 每个菜单项垂直间距为 20 像素
-        if (i == currentMenuItem)
-        {
-            bf.setTextColor(TFT_WHITE, TFT_RED); // 高亮当前选中的菜单项
-        }
-        else
-        {
-            bf.setTextColor(TFT_WHITE, TFT_BLACK); // 普通菜单项
-        }
+        int itemIndex = startIndex + i;
+        if (itemIndex >= totalItems)
+            break;
 
-        // 根据当前菜单层级绘制菜单项
-        if (currentMenuLevel == 0)
-        {
-            bf.drawString(menuItems[i].name, 10, yPos);
-        }
-        else
-        {
-            bf.drawString(currentMenu->subMenu[i].name, 10, yPos);
-        }
+        int yPos = 10 + i * 20; // 根据可见位置计算Y坐标
+
+        // // 设置文本颜色
+        // bf.setTextColor((itemIndex == targetMenuItem) ? TFT_WHITE : TFT_SILVER,
+        //                 (itemIndex == targetMenuItem) ? TFT_RED : TFT_BLACK);
+
+        // 绘制菜单文本
+        const char *name = (currentMenuLevel == 0) ? menuItems[itemIndex].name : currentMenu->subMenu[itemIndex].name;
+        bf.drawString(name, 10, yPos);
     }
     // 计算目标宽度
     int RoundRectWidth = 0;
@@ -177,66 +209,83 @@ void Draw_Menu(void)
         currentWidth = targetWidth;
     }
     // 动画更新高亮框位置
-    float targetY = 10 + targetMenuItem * 20;
-    if (highlightY != targetY)
+    // float targetY = 10 + targetMenuItem * 20;
+    int relativePos = targetMenuItem - startIndex;
+    float targetHighlightY = 10 + relativePos * 20;
+    if (highlightY != targetHighlightY)
     {
-        float step = (targetY - highlightY) * 0.1; // 平滑移动步长
+        float step = (targetHighlightY - highlightY) * 0.12; // 平滑移动步长
         highlightY += step;
 
-        if (abs(highlightY - targetY) < 1)
+        if (abs(highlightY - targetHighlightY) < 1)
         {
-            highlightY = targetY;
+            highlightY = targetHighlightY;
             currentMenuItem = targetMenuItem; // 更新当前菜单项索引
         }
     }
     // 绘制高亮框
     bf.drawRoundRect(9, highlightY, currentWidth, 17, 3, TFT_RED);
     bf.drawRoundRect(8, highlightY - 1, currentWidth, 19, 3, TFT_RED);
+
+    if (totalItems > maxVisibleItems)
+    {
+        float visibleRatio = (float)maxVisibleItems / totalItems;
+        int scrollbarHeight = 240 * visibleRatio;
+        scrollbarHeight = constrain(scrollbarHeight, 20, 240); // 最小高度20像素
+        int scrollbarPos = map(startIndex, 0, totalItems - maxVisibleItems, 0, 240 - scrollbarHeight);
+        bf.fillRoundRect(220, 0, 5, 240, 2, TFT_DARKGREY);
+        bf.fillRoundRect(220, scrollbarPos, 5, scrollbarHeight, 2, TFT_WHITE);
+    }
 }
 
 /// @brief 处理输入
 void Menu_Handle_Input()
 {
     Menu_Tick();
-
+    // 获取总菜单项数量
+    int totalItems = (currentMenuLevel == 0) ? sizeof(menuItems) / sizeof(menuItems[0]) : currentMenu->subMenuCount;
     // 检测 DOWN_PIN 是否被按下
     if (getKeyState(DOWN_PIN) == KEY_PRESS)
     {
-        // 移动到下一个菜单项
         targetMenuItem++;
-        if (currentMenuLevel == 0 && targetMenuItem >= sizeof(menuItems) / sizeof(menuItems[0]))
+        if (targetMenuItem >= totalItems)
         {
-            targetMenuItem = 0; // 循环回到第一个菜单项
+            targetMenuItem = 0;
+            startIndex = 0;
         }
-        else if (currentMenuLevel == 1 && targetMenuItem >= currentMenu->subMenuCount)
+        // 滚动逻辑：当目标项超出可见区域时调整起始索引
+        if (targetMenuItem >= startIndex + maxVisibleItems)
         {
-            targetMenuItem = 0; // 循环回到第一个子菜单项
+            startIndex = targetMenuItem - maxVisibleItems + 1;
         }
     }
     // 检测 UP_PIN 是否被按下
     if (getKeyState(UP_PIN) == KEY_PRESS)
     {
-        // 移动到上一个菜单项
         targetMenuItem--;
-        if (currentMenuLevel == 0 && targetMenuItem < 0)
+        if (targetMenuItem < 0)
         {
-            targetMenuItem = sizeof(menuItems) / sizeof(menuItems[0]) - 1; // 循环回到最后一个菜单项
+            targetMenuItem = totalItems - 1;
+            startIndex = max(totalItems - maxVisibleItems, 0); // 确保在项数不足时不会出现负索引
         }
-        else if (currentMenuLevel == 1 && targetMenuItem < 0)
+
+        // 滚动逻辑：当目标项在可见区域上方时调整起始索引
+        if (targetMenuItem < startIndex)
         {
-            targetMenuItem = currentMenu->subMenuCount - 1; // 循环回到最后一个子菜单项
+            startIndex = targetMenuItem;
         }
     }
     // 检测 ENTER_PIN 是否被按下
     if (getKeyState(ENTER_PIN) == KEY_PRESS)
     {
-        if (currentMenuLevel == 0 && menuItems[currentMenuItem].subMenu != NULL)
+        if (currentMenuLevel == 0 && menuItems[targetMenuItem].subMenu != NULL)
         {
             // 进入子菜单
-            currentMenu = &menuItems[currentMenuItem];
+            currentMenu = &menuItems[targetMenuItem];
             currentMenuLevel = 1;
             currentMenuItem = 0;
             targetMenuItem = 0;
+            startIndex = 0;
             highlightY = 10; // 重置高亮框位置
         }
         else
@@ -244,16 +293,16 @@ void Menu_Handle_Input()
             // 调用当前选中菜单项的功能函数
             if (currentMenuLevel == 0)
             {
-                if (menuItems[currentMenuItem].function != NULL)
+                if (menuItems[targetMenuItem].function != NULL)
                 {
-                    menuItems[currentMenuItem].function();
+                    menuItems[targetMenuItem].function();
                 }
             }
             else
             {
-                if (currentMenu->subMenu[currentMenuItem].function != NULL)
+                if (currentMenu->subMenu[targetMenuItem].function != NULL)
                 {
-                    currentMenu->subMenu[currentMenuItem].function();
+                    currentMenu->subMenu[targetMenuItem].function();
                 }
             }
         }
@@ -293,6 +342,7 @@ void Return(void)
         targetMenuItem = 0;
         highlightY = 10; // 重置高亮框位置
     }
+    startIndex = 0; // 返回上级时重置滚动位置
 }
 
 void about(void)
@@ -367,11 +417,11 @@ void BLK_config()
 void Date_Time()
 {
     // WiFi 和 NTP 配置
-    const char *ssid = "3D-bambu";         // 网络名称
-    const char *password = "hua12345";     // 网络密码
+    const char *ssid = "3D-bambu";          // 网络名称
+    const char *password = "hua12345";      // 网络密码
     const char *ntpServer = "pool.ntp.org"; // NTP 服务器地址
-    const long gmtOffset_sec = 8 * 3600;   // 北京时间偏移量（+8 小时）
-    const int daylightOffset_sec = 0;      // 夏令时偏移量
+    const long gmtOffset_sec = 8 * 3600;    // 北京时间偏移量（+8 小时）
+    const int daylightOffset_sec = 0;       // 夏令时偏移量
 
     // 初始化 WiFi 和 NTP
     WiFi.begin(ssid, password);
