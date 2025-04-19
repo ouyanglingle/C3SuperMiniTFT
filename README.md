@@ -45,7 +45,7 @@
 
 ## 安装指南
 
-1. 克隆仓库：
+1. 克隆仓库(或者下载.zip文件):
 ```bash
 git clone https://github.com/yourusername/arduino-tft-menu.git
 ```
