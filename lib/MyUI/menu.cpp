@@ -92,7 +92,7 @@ MenuItem *currentMenu = menuItems;  // 当前菜单指针
 float highlightY = 0;               // 高亮框的 Y 坐标（支持浮点数用于平滑移动）
 bool isHighlightStable = false;     // 高亮框是否稳定
 uint32_t lastUpdateTime = 0;        // 上一次更新的时间戳
-const uint32_t updateInterval = 10; // 更新间隔（毫秒）
+const uint32_t updateInterval = 1; // 更新间隔（毫秒）
 int startIndex = 0;                 // 当前显示的第一个菜单项索引
 uint8_t maxVisibleItems = 11;       // 屏幕最多显示的菜单项数量
 // ===============================
@@ -101,14 +101,14 @@ uint8_t maxVisibleItems = 11;       // 屏幕最多显示的菜单项数量
 float currentWidth = 0;                  // 当前宽度
 float targetWidth = 0;                   // 目标宽度
 pid_type_def widthPid = {0};             // 宽度的 PID 控制器
-float widthPid_pid[] = {0.1, 0.0, 0.02}; // 宽度的 PID 参数
+float widthPid_pid[] = {0.15, 0.0, 0.02}; // 宽度的 PID 参数
 
 /// @brief 初始化菜单
 /// @param void
 void Menu_Init(void)
 {
     // 初始化宽度的 PID
-    PID_init(&widthPid, PID_POSITION, widthPid_pid, 5.0f, 0.1f);
+    PID_init(&widthPid, PID_POSITION, widthPid_pid, 8.0f, 0.1f);
 
     pinMode(led, OUTPUT);
     pinMode(0, OUTPUT); // 0号引脚控制背光
