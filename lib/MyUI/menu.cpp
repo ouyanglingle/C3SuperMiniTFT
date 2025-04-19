@@ -60,14 +60,26 @@ MenuItem menuItems[] = {
     {"SoftWare", NULL, SoftWareSubMenu, sizeof(SoftWareSubMenu) / sizeof(SoftWareSubMenu[0])},
     {"Device & Module", NULL, DeviceSubMenu, sizeof(DeviceSubMenu) / sizeof(DeviceSubMenu[0])},
     {"Game", NULL, NULL, 0},
-    {"NONE", NULL, NULL, 0},
-    {"NONE", NULL, NULL, 0},
-    {"NONE", NULL, NULL, 0},
-    {"NONE", NULL, NULL, 0},
-    {"NONE", NULL, NULL, 0},
-    {"NONE", NULL, NULL, 0},
-    {"NONE", NULL, NULL, 0},
-    {"NONE", NULL, NULL, 0},
+    {"NONE1", NULL, NULL, 0},
+    {"NONE2", NULL, NULL, 0},
+    {"NONE3", NULL, NULL, 0},
+    {"NONE4", NULL, NULL, 0},
+    {"NONE5", NULL, NULL, 0},
+    {"NONE6", NULL, NULL, 0},
+    {"NONE7", NULL, NULL, 0},
+    {"NONE8", NULL, NULL, 0},
+    {"NONE9", NULL, NULL, 0},
+    {"NONE0", NULL, NULL, 0},
+    {"NONE1", NULL, NULL, 0},
+    {"NONE2", NULL, NULL, 0},
+    {"NONE3", NULL, NULL, 0},
+    {"NONE4", NULL, NULL, 0},
+    {"NONE5", NULL, NULL, 0},
+    {"NONE6", NULL, NULL, 0},
+    {"NONE7", NULL, NULL, 0},
+    {"NONE8", NULL, NULL, 0},
+    {"NONE9", NULL, NULL, 0},
+    {"NONE0", NULL, NULL, 0},
     {"About", about, NULL, 0},
 };
 // ================================
@@ -78,6 +90,7 @@ int targetMenuItem = 0;             // 目标菜单项索引
 int currentMenuLevel = 0;           // 当前菜单层级（0: 一级菜单，1: 二级菜单）
 MenuItem *currentMenu = menuItems;  // 当前菜单指针
 float highlightY = 0;               // 高亮框的 Y 坐标（支持浮点数用于平滑移动）
+bool isHighlightStable = false;     // 高亮框是否稳定
 uint32_t lastUpdateTime = 0;        // 上一次更新的时间戳
 const uint32_t updateInterval = 10; // 更新间隔（毫秒）
 int startIndex = 0;                 // 当前显示的第一个菜单项索引
@@ -180,11 +193,6 @@ void Draw_Menu(void)
             break;
 
         int yPos = 10 + i * 20; // 根据可见位置计算Y坐标
-
-        // // 设置文本颜色
-        // bf.setTextColor((itemIndex == targetMenuItem) ? TFT_WHITE : TFT_SILVER,
-        //                 (itemIndex == targetMenuItem) ? TFT_RED : TFT_BLACK);
-
         // 绘制菜单文本
         const char *name = (currentMenuLevel == 0) ? menuItems[itemIndex].name : currentMenu->subMenu[itemIndex].name;
         bf.drawString(name, 10, yPos);
@@ -209,20 +217,25 @@ void Draw_Menu(void)
         currentWidth = targetWidth;
     }
     // 动画更新高亮框位置
-    // float targetY = 10 + targetMenuItem * 20;
     int relativePos = targetMenuItem - startIndex;
     float targetHighlightY = 10 + relativePos * 20;
     if (highlightY != targetHighlightY)
     {
         float step = (targetHighlightY - highlightY) * 0.12; // 平滑移动步长
         highlightY += step;
+        isHighlightStable = false; // 动画进行中
 
         if (abs(highlightY - targetHighlightY) < 1)
         {
             highlightY = targetHighlightY;
             currentMenuItem = targetMenuItem; // 更新当前菜单项索引
+            isHighlightStable = true;         // 标记动画完成
         }
     }
+    else
+    {
+        isHighlightStable = true;
+    } // 已经稳定
     // 绘制高亮框
     bf.drawRoundRect(9, highlightY, currentWidth, 17, 3, TFT_RED);
     bf.drawRoundRect(8, highlightY - 1, currentWidth, 19, 3, TFT_RED);
@@ -233,8 +246,8 @@ void Draw_Menu(void)
         int scrollbarHeight = 240 * visibleRatio;
         scrollbarHeight = constrain(scrollbarHeight, 20, 240); // 最小高度20像素
         int scrollbarPos = map(startIndex, 0, totalItems - maxVisibleItems, 0, 240 - scrollbarHeight);
-        bf.fillRoundRect(220, 0, 5, 240, 2, TFT_DARKGREY);
-        bf.fillRoundRect(220, scrollbarPos, 5, scrollbarHeight, 2, TFT_WHITE);
+        bf.fillRoundRect(235, 0, 5, 240, 2, TFT_DARKGREY);
+        bf.fillRoundRect(235, scrollbarPos, 5, scrollbarHeight, 2, TFT_PURPLE);
     }
 }
 
@@ -245,7 +258,7 @@ void Menu_Handle_Input()
     // 获取总菜单项数量
     int totalItems = (currentMenuLevel == 0) ? sizeof(menuItems) / sizeof(menuItems[0]) : currentMenu->subMenuCount;
     // 检测 DOWN_PIN 是否被按下
-    if (getKeyState(DOWN_PIN) == KEY_PRESS)
+    if (getKeyState(DOWN_PIN) == KEY_PRESS || getKeyState(DOWN_PIN) == KEY_LONG_PRESS)
     {
         targetMenuItem++;
         if (targetMenuItem >= totalItems)
@@ -260,7 +273,7 @@ void Menu_Handle_Input()
         }
     }
     // 检测 UP_PIN 是否被按下
-    if (getKeyState(UP_PIN) == KEY_PRESS)
+    if (getKeyState(UP_PIN) == KEY_PRESS || getKeyState(UP_PIN) == KEY_LONG_PRESS)
     {
         targetMenuItem--;
         if (targetMenuItem < 0)

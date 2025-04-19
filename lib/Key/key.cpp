@@ -68,7 +68,7 @@ KEY_STATE getKeyState(uint8_t pin)
                 return KEY_RELEASE;
             }
             // 检测按键是否处于长按状态
-            if (pins[i].stable_state == LOW && (millis() - pins[i].last_check_time > 1000))
+            if (pins[i].stable_state == LOW && (millis() - pins[i].last_check_time > 500))
             {
                 return KEY_LONG_PRESS;
             }
