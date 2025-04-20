@@ -28,50 +28,46 @@ struct MenuItem
 // 定义子菜单项
 MenuItem settingsSubMenu[] = {
     {"Brightness", BLK_config, NULL, 0, false},
-    {"Volume", exampleFunction, NULL, 0, false},
-    {"Language", exampleFunction, NULL, 0, false},
+    {"Volume", Volume, NULL, 0, false},
+    {"Language", NULL, NULL, 0, false},
     {"Time", Date_Time, NULL, 0, false},
     {"Counter", exampleFunction, NULL, 0, false},
     {"Return", Return, NULL, 0, false},
 };
-MenuItem HardWareSubMenu[] = {
-    {"UART1", exampleFunction, NULL, 0},
-    {"Wire0", exampleFunction, NULL, 0},
-    {"Wire1", exampleFunction, NULL, 0},
-    {"GPIO", exampleFunction, NULL, 0},
-    {"USB-device", exampleFunction, NULL, 0},
-    {"Return", Return, NULL, 0},
+
+// 定义子菜单项
+MenuItem USB_device_SubMenu[] = {
+    {"USB-HID-Mouse", BLK_config, NULL, 0, false},
+    {"USB-HID-KeyBoard", Volume, NULL, 0, false},
+    {"Return", Return, NULL, 0, false},
 };
-MenuItem SoftWareSubMenu[] = {
-    {"MQTT", exampleFunction, NULL, 0},
-    {"TCP", exampleFunction, NULL, 0},
-    {"Return", Return, NULL, 0},
-};
-MenuItem DeviceSubMenu[] = {
-    {"Lora-Module", exampleFunction, NULL, 0},
-    {"BY5002-Module", exampleFunction, NULL, 0},
-    {"Wit-IWT603", exampleFunction, NULL, 0},
-    {"Return", Return, NULL, 0},
-};
+
 // 主菜单项(屏幕最多放只11个菜单项目)
-MenuItem menuItems[] = {
-    {"===  Main Menu ===", NULL, NULL, 0, true},
+PROGMEM MenuItem menuItems[] = {
+    {"===   System   ===", NULL, NULL, 0, true},
     {"Settings", NULL, settingsSubMenu, sizeof(settingsSubMenu) / sizeof(settingsSubMenu[0]), false},
     {"About", about, NULL, 0, false},
     {"===  HardWare  ===", NULL, NULL, 0, true},
-    {"UART1", exampleFunction, NULL, 0, false},
-    {"Wire0", exampleFunction, NULL, 0, false},
-    {"Wire1", exampleFunction, NULL, 0, false},
-    {"GPIO", exampleFunction, NULL, 0, false},
-    {"USB-device", exampleFunction, NULL, 0, false},
+    {"UART1", NULL, NULL, 0, false},
+    {"Wire0", NULL, NULL, 0, false},
+    {"Wire1", NULL, NULL, 0, false},
+    {"GPIO", GPIO_config, NULL, 0, false},
+    {"USB-device", NULL, USB_device_SubMenu, sizeof(USB_device_SubMenu) / sizeof(USB_device_SubMenu[0]), false},
     {"===  SoftWare  ===", NULL, NULL, 0, true},
-    {"MQTT", exampleFunction, NULL, 0, false},
-    {"TCP", exampleFunction, NULL, 0, false},
+    {"MQTT", NULL, NULL, 0, false},
+    {"TCP", NULL, NULL, 0, false},
     {"= Device  Module =", NULL, NULL, 0, true},
-    {"Lora-Module", exampleFunction, NULL, 0, false},
-    {"BY5002-Module", exampleFunction, NULL, 0, false},
-    {"Wit-IWT603", exampleFunction, NULL, 0, false},
+    {"Lora-Module", NULL, NULL, 0, false},
+    {"BY5002-Module", NULL, NULL, 0, false},
+    {"Wit-IWT603", NULL, NULL, 0, false},
+    {"4-PL Robot-ARM", RobotARM, NULL, 0, false},
+    {"Core-XY", NULL, NULL, 0, false},
     {"===    Game    ===", NULL, NULL, 0, true},
+    {"Avoid Obstacles", avoidObstaclesGame, NULL, 0, false},
+    {"NONE0", NULL, NULL, 0, false},
+    {"NONE1", NULL, NULL, 0, false},
+    {"NONE2", NULL, NULL, 0, false},
+    {"NONE3", NULL, NULL, 0, false},
     {"NONE4", NULL, NULL, 0, false},
     {"NONE5", NULL, NULL, 0, false},
     {"NONE6", NULL, NULL, 0, false},
@@ -89,6 +85,35 @@ MenuItem menuItems[] = {
     {"NONE8", NULL, NULL, 0, false},
     {"NONE9", NULL, NULL, 0, false},
     {"NONE0", NULL, NULL, 0, false},
+    {"NONE1", NULL, NULL, 0, false},
+    {"NONE2", NULL, NULL, 0, false},
+    {"NONE3", NULL, NULL, 0, false},
+    {"NONE4", NULL, NULL, 0, false},
+    {"NONE5", NULL, NULL, 0, false},
+    {"NONE6", NULL, NULL, 0, false},
+    {"NONE7", NULL, NULL, 0, false},
+    {"NONE8", NULL, NULL, 0, false},
+    {"NONE9", NULL, NULL, 0, false},
+    {"NONE0", NULL, NULL, 0, false},
+    {"NONE1", NULL, NULL, 0, false},
+    {"NONE2", NULL, NULL, 0, false},
+    {"NONE3", NULL, NULL, 0, false},
+    {"NONE4", NULL, NULL, 0, false},
+    {"NONE5", NULL, NULL, 0, false},
+    {"NONE6", NULL, NULL, 0, false},
+    {"NONE7", NULL, NULL, 0, false},
+    {"NONE8", NULL, NULL, 0, false},
+    {"NONE9", NULL, NULL, 0, false},
+    {"NONE0", NULL, NULL, 0, false},
+    {"NONE1", NULL, NULL, 0, false},
+    {"NONE2", NULL, NULL, 0, false},
+    {"NONE3", NULL, NULL, 0, false},
+    {"NONE4", NULL, NULL, 0, false},
+    {"NONE5", NULL, NULL, 0, false},
+    {"NONE6", NULL, NULL, 0, false},
+    {"NONE7", NULL, NULL, 0, false},
+    {"NONE8", NULL, NULL, 0, false},
+    {"NONE9", NULL, NULL, 0, false},
 };
 // ================================
 // 这些个变量比较重要
@@ -122,16 +147,15 @@ void Menu_Init(void)
     pinMode(0, OUTPUT); // 0号引脚控制背光
     analogWrite(0, (uint8_t)255);
     tft.init();
-    tft.fillScreen(TFT_BLACK);
+    tft.fillScreen(BF_BG_COLOR);
     bf.createSprite(240, 240);
-    bf.setTextColor(TFT_WHITE, TFT_BLACK);
+    bf.setTextColor(BF_FG_COLOR, BF_BG_COLOR);
     bf.setTextSize(2);
 
     // 创建一个小缓冲区
     func_bf.createSprite(160, 160);             // 小缓冲区大小为 160x80
-    func_bf.setTextColor(TFT_BLACK, TFT_WHITE); // 设置字体颜色为白色，背景为黑色
+    func_bf.setTextColor(FUNC_BF_FG_COLOR, FUNC_BF_BG_COLOR); // 设置字体颜色为白色，背景为黑色
     func_bf.setTextSize(1);                     // 设置字体大小
-    func_bf.setSwapBytes(true);                 // 启用颜色混合
 
     // 初始化高亮框位置
     highlightY = 10 + currentMenuItem * 20;
@@ -169,7 +193,7 @@ void func_bf_SwitchAnimate(void)
     // 动画逻辑
     while (currentY > targetY)
     {
-        func_bf.fillSprite(TFT_WHITE); // 清屏
+        func_bf.fillSprite(FUNC_BF_BG_COLOR); // 清屏
         func_bf.setCursor(1, 1);
         func_bf.printf("Example Function");   // 显示初始内容
         func_bf.pushSprite(startX, currentY); // 更新小缓冲区位置
@@ -181,14 +205,14 @@ void func_bf_SwitchAnimate(void)
     startY = 240 + 80; // 初始 y 坐标
     targetY = 60;      // 目标 y 坐标
     currentY = startY; // 当前 y 坐标
-    bf.fillRect(40, 200, 160, 40, TFT_BLACK);
+    bf.fillRect(40, 200, 160, 40, BF_BG_COLOR);
     bf.pushSprite(0, 0);
 }
 /// @brief 绘制菜单
 /// @param void
 void Draw_Menu(void)
 {
-    bf.fillSprite(TFT_BLACK); // 清屏
+    bf.fillSprite(BF_BG_COLOR); // 清屏
     // 获取当前菜单信息
     int totalItems = (currentMenuLevel == 0) ? sizeof(menuItems) / sizeof(menuItems[0]) : currentMenu->subMenuCount;
     // 确保起始索引有效
@@ -204,9 +228,9 @@ void Draw_Menu(void)
         // 绘制菜单文本
         const char *name = (currentMenuLevel == 0) ? menuItems[itemIndex].name : currentMenu->subMenu[itemIndex].name;
         if ((currentMenuLevel == 0) ? menuItems[itemIndex].isTitle : currentMenu->subMenu[itemIndex].isTitle)
-            bf.setTextColor(TFT_BLUE, TFT_DARKGREY);
+            bf.setTextColor(TFT_PURPLE, TFT_DARKGREY);
         else
-            bf.setTextColor(TFT_WHITE, TFT_BLACK);
+            bf.setTextColor(BF_FG_COLOR, BF_BG_COLOR);
         bf.drawString(name, 10, yPos);
     }
     // 计算目标宽度
@@ -251,7 +275,7 @@ void Draw_Menu(void)
     // 绘制高亮框
     bf.drawRoundRect(9, highlightY, currentWidth, 17, 2, TFT_RED);
     bf.drawRoundRect(8, highlightY - 1, currentWidth, 19, 2, TFT_RED);
-
+    // 绘制滚动条
     if (totalItems > maxVisibleItems)
     {
         float visibleRatio = (float)maxVisibleItems / totalItems;
@@ -342,7 +366,7 @@ void exampleFunction(void)
     // 在目标位置显示计数器
     for (int i = 0; i <= 10; i++)
     {
-        func_bf.fillSprite(TFT_WHITE); // 清屏
+        func_bf.fillSprite(FUNC_BF_BG_COLOR); // 清屏
         func_bf.drawRect(0, 0, 160, 160, TFT_GREEN);
         func_bf.drawRect(1, 1, 158, 158, TFT_GREEN);
         /*USER CODE BEGIN*/
@@ -375,7 +399,7 @@ void about(void)
     func_bf_SwitchAnimate();
     while (1)
     {
-        func_bf.fillSprite(TFT_WHITE); // 清屏
+        func_bf.fillSprite(FUNC_BF_BG_COLOR); // 清屏
         func_bf.drawRect(0, 0, 160, 160, TFT_GREEN);
         func_bf.drawRect(1, 1, 158, 158, TFT_GREEN);
         /*USER CODE BEGIN*/
@@ -397,7 +421,7 @@ void BLK_config()
     static float BLK_rates = 1; // 初始亮度比例
     while (1)
     {
-        func_bf.fillSprite(TFT_WHITE); // 清屏
+        func_bf.fillSprite(FUNC_BF_BG_COLOR); // 清屏
         func_bf.drawRect(0, 0, 160, 160, TFT_GREEN);
         func_bf.drawRect(1, 1, 158, 158, TFT_GREEN);
         /*USER CODE BEGIN*/
@@ -426,7 +450,7 @@ void BLK_config()
             BLK_rates = 1;
 
         // 更新 PWM 输出和环形亮度圆圈
-        func_bf.drawSmoothArc(80, 80, 70, 60, 0, (uint32_t)360 * BLK_rates, TFT_GOLD, TFT_WHITE, true);
+        func_bf.drawSmoothArc(80, 80, 70, 60, 0, (uint32_t)360 * BLK_rates, TFT_GOLD, FUNC_BF_BG_COLOR, true);
         func_bf.setCursor(72, 75);
         func_bf.printf("%.0f", BLK_rates * 100);
         analogWrite(BLK, (uint8_t)(BLK_rates * 255));
@@ -442,11 +466,11 @@ void BLK_config()
 void Date_Time()
 {
     // WiFi 和 NTP 配置
-    const char *ssid = "3D-bambu";          // 网络名称
-    const char *password = "hua12345";      // 网络密码
-    const char *ntpServer = "pool.ntp.org"; // NTP 服务器地址
-    const long gmtOffset_sec = 8 * 3600;    // 北京时间偏移量（+8 小时）
-    const int daylightOffset_sec = 0;       // 夏令时偏移量
+    const char *ssid = "3D-bambu";            // 网络名称
+    const char *password = "hua12345";        // 网络密码
+    const char *ntpServer = "ntp.ntsc.ac.cn"; // NTP 服务器地址(可以上网查)
+    const long gmtOffset_sec = 8 * 3600;      // 北京时间偏移量（+8 小时）
+    const int daylightOffset_sec = 0;         // 夏令时偏移量
 
     // 初始化 WiFi 和 NTP
     WiFi.begin(ssid, password);
@@ -468,7 +492,7 @@ void Date_Time()
 
     while (1)
     {
-        func_bf.fillSprite(TFT_WHITE); // 清屏
+        func_bf.fillSprite(FUNC_BF_BG_COLOR); // 清屏
         func_bf.drawRect(0, 0, 160, 160, TFT_GREEN);
         func_bf.drawRect(1, 1, 158, 158, TFT_GREEN);
 

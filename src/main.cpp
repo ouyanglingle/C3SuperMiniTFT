@@ -95,7 +95,7 @@ void setup()
     pinMode(10, OUTPUT);
     digitalWrite(7, LOW);
     digitalWrite(10, LOW);
-
+    Serial1.begin(9600, SERIAL_8N1, 8, 6);
     Key_Init();
     Menu_Init();
     Draw_Menu();
