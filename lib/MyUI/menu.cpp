@@ -22,16 +22,17 @@ struct MenuItem
     void (*function)(); // 菜单项对应的函数
     MenuItem *subMenu;  // 子菜单数组
     int subMenuCount;   // 子菜单数量
+    bool isTitle;       // 是否为标题
 };
 
 // 定义子菜单项
 MenuItem settingsSubMenu[] = {
-    {"Brightness", BLK_config, NULL, 0},
-    {"Volume", exampleFunction, NULL, 0},
-    {"Language", exampleFunction, NULL, 0},
-    {"Time", Date_Time, NULL, 0},
-    {"Counter", exampleFunction, NULL, 0},
-    {"Return", Return, NULL, 0},
+    {"Brightness", BLK_config, NULL, 0, false},
+    {"Volume", exampleFunction, NULL, 0, false},
+    {"Language", exampleFunction, NULL, 0, false},
+    {"Time", Date_Time, NULL, 0, false},
+    {"Counter", exampleFunction, NULL, 0, false},
+    {"Return", Return, NULL, 0, false},
 };
 MenuItem HardWareSubMenu[] = {
     {"UART1", exampleFunction, NULL, 0},
@@ -54,53 +55,60 @@ MenuItem DeviceSubMenu[] = {
 };
 // 主菜单项(屏幕最多放只11个菜单项目)
 MenuItem menuItems[] = {
-    {"Main Menu", NULL, NULL, 0},
-    {"Settings", NULL, settingsSubMenu, sizeof(settingsSubMenu) / sizeof(settingsSubMenu[0])},
-    {"HardWare", NULL, HardWareSubMenu, sizeof(HardWareSubMenu) / sizeof(HardWareSubMenu[0])},
-    {"SoftWare", NULL, SoftWareSubMenu, sizeof(SoftWareSubMenu) / sizeof(SoftWareSubMenu[0])},
-    {"Device & Module", NULL, DeviceSubMenu, sizeof(DeviceSubMenu) / sizeof(DeviceSubMenu[0])},
-    {"Game", NULL, NULL, 0},
-    {"NONE1", NULL, NULL, 0},
-    {"NONE2", NULL, NULL, 0},
-    {"NONE3", NULL, NULL, 0},
-    {"NONE4", NULL, NULL, 0},
-    {"NONE5", NULL, NULL, 0},
-    {"NONE6", NULL, NULL, 0},
-    {"NONE7", NULL, NULL, 0},
-    {"NONE8", NULL, NULL, 0},
-    {"NONE9", NULL, NULL, 0},
-    {"NONE0", NULL, NULL, 0},
-    {"NONE1", NULL, NULL, 0},
-    {"NONE2", NULL, NULL, 0},
-    {"NONE3", NULL, NULL, 0},
-    {"NONE4", NULL, NULL, 0},
-    {"NONE5", NULL, NULL, 0},
-    {"NONE6", NULL, NULL, 0},
-    {"NONE7", NULL, NULL, 0},
-    {"NONE8", NULL, NULL, 0},
-    {"NONE9", NULL, NULL, 0},
-    {"NONE0", NULL, NULL, 0},
-    {"About", about, NULL, 0},
+    {"===  Main Menu ===", NULL, NULL, 0, true},
+    {"Settings", NULL, settingsSubMenu, sizeof(settingsSubMenu) / sizeof(settingsSubMenu[0]), false},
+    {"About", about, NULL, 0, false},
+    {"===  HardWare  ===", NULL, NULL, 0, true},
+    {"UART1", exampleFunction, NULL, 0, false},
+    {"Wire0", exampleFunction, NULL, 0, false},
+    {"Wire1", exampleFunction, NULL, 0, false},
+    {"GPIO", exampleFunction, NULL, 0, false},
+    {"USB-device", exampleFunction, NULL, 0, false},
+    {"===  SoftWare  ===", NULL, NULL, 0, true},
+    {"MQTT", exampleFunction, NULL, 0, false},
+    {"TCP", exampleFunction, NULL, 0, false},
+    {"= Device  Module =", NULL, NULL, 0, true},
+    {"Lora-Module", exampleFunction, NULL, 0, false},
+    {"BY5002-Module", exampleFunction, NULL, 0, false},
+    {"Wit-IWT603", exampleFunction, NULL, 0, false},
+    {"===    Game    ===", NULL, NULL, 0, true},
+    {"NONE4", NULL, NULL, 0, false},
+    {"NONE5", NULL, NULL, 0, false},
+    {"NONE6", NULL, NULL, 0, false},
+    {"NONE7", NULL, NULL, 0, false},
+    {"NONE8", NULL, NULL, 0, false},
+    {"NONE9", NULL, NULL, 0, false},
+    {"NONE0", NULL, NULL, 0, false},
+    {"NONE1", NULL, NULL, 0, false},
+    {"NONE2", NULL, NULL, 0, false},
+    {"NONE3", NULL, NULL, 0, false},
+    {"NONE4", NULL, NULL, 0, false},
+    {"NONE5", NULL, NULL, 0, false},
+    {"NONE6", NULL, NULL, 0, false},
+    {"NONE7", NULL, NULL, 0, false},
+    {"NONE8", NULL, NULL, 0, false},
+    {"NONE9", NULL, NULL, 0, false},
+    {"NONE0", NULL, NULL, 0, false},
 };
 // ================================
 // 这些个变量比较重要
 // ================================
-int currentMenuItem = 0;            // 当前选中的菜单项索引
-int targetMenuItem = 0;             // 目标菜单项索引
-int currentMenuLevel = 0;           // 当前菜单层级（0: 一级菜单，1: 二级菜单）
-MenuItem *currentMenu = menuItems;  // 当前菜单指针
-float highlightY = 0;               // 高亮框的 Y 坐标（支持浮点数用于平滑移动）
-bool isHighlightStable = false;     // 高亮框是否稳定
-uint32_t lastUpdateTime = 0;        // 上一次更新的时间戳
+int currentMenuItem = 0;           // 当前选中的菜单项索引
+int targetMenuItem = 0;            // 目标菜单项索引
+int currentMenuLevel = 0;          // 当前菜单层级（0: 一级菜单，1: 二级菜单）
+MenuItem *currentMenu = menuItems; // 当前菜单指针
+float highlightY = 0;              // 高亮框的 Y 坐标（支持浮点数用于平滑移动）
+bool isHighlightStable = false;    // 高亮框是否稳定
+uint32_t lastUpdateTime = 0;       // 上一次更新的时间戳
 const uint32_t updateInterval = 1; // 更新间隔（毫秒）
-int startIndex = 0;                 // 当前显示的第一个菜单项索引
-uint8_t maxVisibleItems = 11;       // 屏幕最多显示的菜单项数量
+int startIndex = 0;                // 当前显示的第一个菜单项索引
+uint8_t maxVisibleItems = 11;      // 屏幕最多显示的菜单项数量
 // ===============================
 //       复选框动画PID参数
 // ===============================
-float currentWidth = 0;                  // 当前宽度
-float targetWidth = 0;                   // 目标宽度
-pid_type_def widthPid = {0};             // 宽度的 PID 控制器
+float currentWidth = 0;                   // 当前宽度
+float targetWidth = 0;                    // 目标宽度
+pid_type_def widthPid = {0};              // 宽度的 PID 控制器
 float widthPid_pid[] = {0.15, 0.0, 0.02}; // 宽度的 PID 参数
 
 /// @brief 初始化菜单
@@ -195,6 +203,10 @@ void Draw_Menu(void)
         int yPos = 10 + i * 20; // 根据可见位置计算Y坐标
         // 绘制菜单文本
         const char *name = (currentMenuLevel == 0) ? menuItems[itemIndex].name : currentMenu->subMenu[itemIndex].name;
+        if ((currentMenuLevel == 0) ? menuItems[itemIndex].isTitle : currentMenu->subMenu[itemIndex].isTitle)
+            bf.setTextColor(TFT_BLUE, TFT_DARKGREY);
+        else
+            bf.setTextColor(TFT_WHITE, TFT_BLACK);
         bf.drawString(name, 10, yPos);
     }
     // 计算目标宽度
@@ -212,7 +224,7 @@ void Draw_Menu(void)
     float width_step = PID_calc(&widthPid, currentWidth, targetWidth);
     currentWidth += width_step;
     // 如果接近目标宽度，则直接设置为目标宽度
-    if (abs(currentWidth - targetWidth) < 1)
+    if (abs(currentWidth - targetWidth) < 0.5)
     {
         currentWidth = targetWidth;
     }
@@ -237,8 +249,8 @@ void Draw_Menu(void)
         isHighlightStable = true;
     } // 已经稳定
     // 绘制高亮框
-    bf.drawRoundRect(9, highlightY, currentWidth, 17, 3, TFT_RED);
-    bf.drawRoundRect(8, highlightY - 1, currentWidth, 19, 3, TFT_RED);
+    bf.drawRoundRect(9, highlightY, currentWidth, 17, 2, TFT_RED);
+    bf.drawRoundRect(8, highlightY - 1, currentWidth, 19, 2, TFT_RED);
 
     if (totalItems > maxVisibleItems)
     {
@@ -247,7 +259,7 @@ void Draw_Menu(void)
         scrollbarHeight = constrain(scrollbarHeight, 20, 240); // 最小高度20像素
         int scrollbarPos = map(startIndex, 0, totalItems - maxVisibleItems, 0, 240 - scrollbarHeight);
         bf.fillRoundRect(235, 0, 5, 240, 2, TFT_DARKGREY);
-        bf.fillRoundRect(235, scrollbarPos, 5, scrollbarHeight, 2, TFT_PURPLE);
+        bf.fillRoundRect(235, scrollbarPos, 5, scrollbarHeight, 2, TFT_BLUE);
     }
 }
 
