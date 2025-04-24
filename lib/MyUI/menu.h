@@ -6,6 +6,7 @@
 #include <key.h>
 #include "pid.h"
 #include <menutask.h>
+#include <esp_heap_caps.h>
 
 #define BF_BG_COLOR TFT_BLACK      // 主菜单背景颜色
 #define BF_FG_COLOR TFT_GOLD   // 主菜单字体颜色

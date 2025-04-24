@@ -1,11 +1,48 @@
-#include <menu.h>
-#include <WiFi.h>
-#include "math.h"
+/*********************************************************************************************************************
+ * 版本： 0.2.0
+ *
+ * 基于 GPLv3 协议发布，您可以在以下位置查看完整协议内容：
+ * https://www.gnu.org/licenses/gpl-3.0.html
+ *
+ * 一个简单的，在LCD上绘制二级菜单的框架
+ * 
+ * 主要功能：
+ * - 二级菜单系统实现
+ * - 带平滑动画的交互界面
+ * - 支持PID控制的动态效果
+ * - 集成WiFi/NTP时间同步功能
+ * - 可扩展的菜单项配置系统
+ *
+ * 硬件依赖：
+ * - TFT_eSPI 显示库
+ * - ESP32系列开发板
+ * - 物理按键输入（上/下/确认）
+ *
+ * 修改记录：
+ * 2025-4-24  Wang Mingzhao   提交初版框架，修改分区表，最大化利用 4MB flash
+ ********************************************************************************************************************/
 
-TFT_eSPI tft = TFT_eSPI();
-TFT_eSprite bf = TFT_eSprite(&tft);
-TFT_eSprite func_bf = TFT_eSprite(&tft);
-uint8_t led = 8; // 板载LED
+#include <Arduino.h>
+#include <WiFi.h>
+#include <time.h>
+
+#include <TFT_eSPI.h>
+#include <Ticker.h>
+
+#include "menu.h"
+#include "key.h"
+#include "pid.h"
+
+#define DISPLAY_WIDTH 240
+#define DISPLAY_HEIGHT 240
+#define BACKLIGHT_PIN 0 // 背光控制引脚
+#define LED_INDICATOR 8 // 状态指示灯引脚
+
+// 全局显示对象
+TFT_eSPI tft = TFT_eSPI();               // 主显示对象
+TFT_eSprite bf = TFT_eSprite(&tft);      // 主显示全缓冲区（240x240）
+TFT_eSprite func_bf = TFT_eSprite(&tft); // 功能界面缓冲区（160x160）
+uint8_t led = 8;                         // 板载LED
 
 typedef struct MenuItem MenuItem;
 pid_type_def highlightPid = {0};
@@ -16,104 +53,104 @@ void about(void);
 void BLK_config();
 void Date_Time();
 
+enum TITLE_CLASS
+{
+    PRIMARY = 0,
+    SECONDARY,
+    NORMAL_TEXT,
+    SYS_FUNC_TEXT
+};
+
 struct MenuItem
 {
-    const char *name;   // 菜单项名称
-    void (*function)(); // 菜单项对应的函数
-    MenuItem *subMenu;  // 子菜单数组
-    int subMenuCount;   // 子菜单数量
-    bool isTitle;       // 是否为标题
+    const char *name;       // 菜单项名称
+    void (*function)();     // 菜单项对应的函数
+    MenuItem *subMenu;      // 子菜单数组
+    int subMenuCount;       // 子菜单数量
+    TITLE_CLASS titleClass; // 标题&文本类型
 };
-
 // 定义子菜单项
-MenuItem settingsSubMenu[] = {
-    {"Brightness", BLK_config, NULL, 0, false},
-    {"Volume", Volume, NULL, 0, false},
-    {"Language", NULL, NULL, 0, false},
-    {"Time", Date_Time, NULL, 0, false},
-    {"Counter", exampleFunction, NULL, 0, false},
-    {"Return", Return, NULL, 0, false},
+PROGMEM MenuItem settingsSubMenu[] = {
+    {"Brightness", BLK_config, NULL, 0, NORMAL_TEXT},
+    {"Volume", Volume, NULL, 0, NORMAL_TEXT},
+    {"Language", GPIO_config, NULL, 0, NORMAL_TEXT},
+    {"Time", Date_Time, NULL, 0, NORMAL_TEXT},
+    {"Counter", exampleFunction, NULL, 0, NORMAL_TEXT},
+    {"Return", Return, NULL, 0, SYS_FUNC_TEXT},
+    {"===    Other   ===", NULL, NULL, 0, PRIMARY},
+    {"NONE1", NULL, NULL, 0, NORMAL_TEXT},
+    {"NONE2", NULL, NULL, 0, NORMAL_TEXT},
+    {"NONE3", NULL, NULL, 0, NORMAL_TEXT},
+    {"NONE4", NULL, NULL, 0, NORMAL_TEXT},
+    {"NONE5", NULL, NULL, 0, NORMAL_TEXT},
+    {"NONE6", NULL, NULL, 0, NORMAL_TEXT},
+    {"NONE7", NULL, NULL, 0, NORMAL_TEXT},
+    {"NONE8", NULL, NULL, 0, NORMAL_TEXT},
+    {"NONE9", NULL, NULL, 0, NORMAL_TEXT},
+    {"NONE10", NULL, NULL, 0, NORMAL_TEXT},
 };
-
 // 定义子菜单项
-MenuItem USB_device_SubMenu[] = {
-    {"USB-HID-Mouse", BLK_config, NULL, 0, false},
-    {"USB-HID-KeyBoard", Volume, NULL, 0, false},
-    {"Return", Return, NULL, 0, false},
-};
+PROGMEM MenuItem USB_device_SubMenu[] = {
+    {"USB-HID-Mouse", BLK_config, NULL, 0, NORMAL_TEXT},
+    {"USB-HID-KeyBoard", Volume, NULL, 0, NORMAL_TEXT},
+    {"Return", Return, NULL, 0, SYS_FUNC_TEXT},
+    {"===    Other   ===", NULL, NULL, 0, PRIMARY},
+    {"NONE1", NULL, NULL, 0, NORMAL_TEXT},
+    {"NONE2", NULL, NULL, 0, NORMAL_TEXT},
+    {"NONE3", NULL, NULL, 0, NORMAL_TEXT},
+    {"NONE4", NULL, NULL, 0, NORMAL_TEXT},
+    {"NONE5", NULL, NULL, 0, NORMAL_TEXT},
+    {"NONE6", NULL, NULL, 0, NORMAL_TEXT},
+    {"NONE7", NULL, NULL, 0, NORMAL_TEXT},
+    {"NONE8", NULL, NULL, 0, NORMAL_TEXT},
+    {"NONE9", NULL, NULL, 0, NORMAL_TEXT},
+    {"NONE10", NULL, NULL, 0, NORMAL_TEXT},
 
-// 主菜单项(屏幕最多放只11个菜单项目)
+};
+// 主菜单项(1.3寸240x240屏幕最多放11个菜单项目)
 PROGMEM MenuItem menuItems[] = {
-    {"===   System   ===", NULL, NULL, 0, true},
-    {"Settings", NULL, settingsSubMenu, sizeof(settingsSubMenu) / sizeof(settingsSubMenu[0]), false},
-    {"About", about, NULL, 0, false},
-    {"===  HardWare  ===", NULL, NULL, 0, true},
-    {"UART1", NULL, NULL, 0, false},
-    {"Wire0", NULL, NULL, 0, false},
-    {"Wire1", NULL, NULL, 0, false},
-    {"GPIO", GPIO_config, NULL, 0, false},
-    {"USB-device", NULL, USB_device_SubMenu, sizeof(USB_device_SubMenu) / sizeof(USB_device_SubMenu[0]), false},
-    {"===  SoftWare  ===", NULL, NULL, 0, true},
-    {"MQTT", NULL, NULL, 0, false},
-    {"TCP", NULL, NULL, 0, false},
-    {"= Device  Module =", NULL, NULL, 0, true},
-    {"Lora-Module", NULL, NULL, 0, false},
-    {"BY5002-Module", NULL, NULL, 0, false},
-    {"Wit-IWT603", NULL, NULL, 0, false},
-    {"4-PL Robot-ARM", RobotARM, NULL, 0, false},
-    {"Core-XY", NULL, NULL, 0, false},
-    {"===    Game    ===", NULL, NULL, 0, true},
-    {"Avoid Obstacles", avoidObstaclesGame, NULL, 0, false},
-    {"NONE0", NULL, NULL, 0, false},
-    {"NONE1", NULL, NULL, 0, false},
-    {"NONE2", NULL, NULL, 0, false},
-    {"NONE3", NULL, NULL, 0, false},
-    {"NONE4", NULL, NULL, 0, false},
-    {"NONE5", NULL, NULL, 0, false},
-    {"NONE6", NULL, NULL, 0, false},
-    {"NONE7", NULL, NULL, 0, false},
-    {"NONE8", NULL, NULL, 0, false},
-    {"NONE9", NULL, NULL, 0, false},
-    {"NONE0", NULL, NULL, 0, false},
-    {"NONE1", NULL, NULL, 0, false},
-    {"NONE2", NULL, NULL, 0, false},
-    {"NONE3", NULL, NULL, 0, false},
-    {"NONE4", NULL, NULL, 0, false},
-    {"NONE5", NULL, NULL, 0, false},
-    {"NONE6", NULL, NULL, 0, false},
-    {"NONE7", NULL, NULL, 0, false},
-    {"NONE8", NULL, NULL, 0, false},
-    {"NONE9", NULL, NULL, 0, false},
-    {"NONE0", NULL, NULL, 0, false},
-    {"NONE1", NULL, NULL, 0, false},
-    {"NONE2", NULL, NULL, 0, false},
-    {"NONE3", NULL, NULL, 0, false},
-    {"NONE4", NULL, NULL, 0, false},
-    {"NONE5", NULL, NULL, 0, false},
-    {"NONE6", NULL, NULL, 0, false},
-    {"NONE7", NULL, NULL, 0, false},
-    {"NONE8", NULL, NULL, 0, false},
-    {"NONE9", NULL, NULL, 0, false},
-    {"NONE0", NULL, NULL, 0, false},
-    {"NONE1", NULL, NULL, 0, false},
-    {"NONE2", NULL, NULL, 0, false},
-    {"NONE3", NULL, NULL, 0, false},
-    {"NONE4", NULL, NULL, 0, false},
-    {"NONE5", NULL, NULL, 0, false},
-    {"NONE6", NULL, NULL, 0, false},
-    {"NONE7", NULL, NULL, 0, false},
-    {"NONE8", NULL, NULL, 0, false},
-    {"NONE9", NULL, NULL, 0, false},
-    {"NONE0", NULL, NULL, 0, false},
-    {"NONE1", NULL, NULL, 0, false},
-    {"NONE2", NULL, NULL, 0, false},
-    {"NONE3", NULL, NULL, 0, false},
-    {"NONE4", NULL, NULL, 0, false},
-    {"NONE5", NULL, NULL, 0, false},
-    {"NONE6", NULL, NULL, 0, false},
-    {"NONE7", NULL, NULL, 0, false},
-    {"NONE8", NULL, NULL, 0, false},
-    {"NONE9", NULL, NULL, 0, false},
+    {"===   System   ===", NULL, NULL, 0, PRIMARY},
+    {"Settings", NULL, settingsSubMenu, sizeof(settingsSubMenu) / sizeof(settingsSubMenu[0]), NORMAL_TEXT},
+    {"About", about, NULL, 0, NORMAL_TEXT},
+    {"===  HardWare  ===", NULL, NULL, 0, PRIMARY},
+    {"UART1", NULL, NULL, 0, NORMAL_TEXT},
+    {"Wire0", NULL, NULL, 0, NORMAL_TEXT},
+    {"Wire1", NULL, NULL, 0, NORMAL_TEXT},
+    {"GPIO", GPIO_config, NULL, 0, NORMAL_TEXT},
+    {"USB-device", NULL, USB_device_SubMenu, sizeof(USB_device_SubMenu) / sizeof(USB_device_SubMenu[0]), NORMAL_TEXT},
+    {"===  SoftWare  ===", NULL, NULL, 0, PRIMARY},
+    {"MQTT", GPIO_config, NULL, 0, NORMAL_TEXT},
+    {"TCP", GPIO_config, NULL, 0, NORMAL_TEXT},
+    {"BlueMouse", GPIO_config, NULL, 0, NORMAL_TEXT},
+    {"BlueKeyBoard", GPIO_config, NULL, 0, NORMAL_TEXT},
+    {"= Device  Module =", NULL, NULL, 0, PRIMARY},
+    {"Lora-Module", GPIO_config, NULL, 0, NORMAL_TEXT},
+    {"BY5002-Module", GPIO_config, NULL, 0, NORMAL_TEXT},
+    {"Wit-IWT603", GPIO_config, NULL, 0, NORMAL_TEXT},
+    {"4-PL Robot-ARM", RobotARM, NULL, 0, NORMAL_TEXT},
+    {"Core-XY", GPIO_config, NULL, 0, NORMAL_TEXT},
+    {"===    Game    ===", NULL, NULL, 0, PRIMARY},
+    {"NONE1", NULL, NULL, 0, NORMAL_TEXT},
+    {"NONE2", NULL, NULL, 0, NORMAL_TEXT},
+    {"NONE3", NULL, NULL, 0, NORMAL_TEXT},
+    {"NONE4", NULL, NULL, 0, NORMAL_TEXT},
+    {"NONE5", NULL, NULL, 0, NORMAL_TEXT},
+    {"NONE6", NULL, NULL, 0, NORMAL_TEXT},
+    {"NONE7", NULL, NULL, 0, NORMAL_TEXT},
+    {"NONE8", NULL, NULL, 0, NORMAL_TEXT},
+    {"NONE9", NULL, NULL, 0, NORMAL_TEXT},
+    {"NONE10", NULL, NULL, 0, NORMAL_TEXT},
+    {"===    Other   ===", NULL, NULL, 0, PRIMARY},
+    {"NONE1", NULL, NULL, 0, NORMAL_TEXT},
+    {"NONE2", NULL, NULL, 0, NORMAL_TEXT},
+    {"NONE3", NULL, NULL, 0, NORMAL_TEXT},
+    {"NONE4", NULL, NULL, 0, NORMAL_TEXT},
+    {"NONE5", NULL, NULL, 0, NORMAL_TEXT},
+    {"NONE6", NULL, NULL, 0, NORMAL_TEXT},
+    {"NONE7", NULL, NULL, 0, NORMAL_TEXT},
+    {"NONE8", NULL, NULL, 0, NORMAL_TEXT},
+    {"NONE9", NULL, NULL, 0, NORMAL_TEXT},
+    {"NONE10", NULL, NULL, 0, NORMAL_TEXT},
 };
 // ================================
 // 这些个变量比较重要
@@ -129,7 +166,7 @@ const uint32_t updateInterval = 1; // 更新间隔（毫秒）
 int startIndex = 0;                // 当前显示的第一个菜单项索引
 uint8_t maxVisibleItems = 11;      // 屏幕最多显示的菜单项数量
 // ===============================
-//       复选框动画PID参数
+//       复选框宽度动画PID参数
 // ===============================
 float currentWidth = 0;                   // 当前宽度
 float targetWidth = 0;                    // 目标宽度
@@ -150,16 +187,15 @@ void Menu_Init(void)
     tft.fillScreen(BF_BG_COLOR);
     bf.createSprite(240, 240);
     bf.setTextColor(BF_FG_COLOR, BF_BG_COLOR);
-    bf.setTextSize(2);
+    bf.setTextSize(2); // 设置字体大小
 
     // 创建一个小缓冲区
-    func_bf.createSprite(160, 160);             // 小缓冲区大小为 160x80
-    func_bf.setTextColor(FUNC_BF_FG_COLOR, FUNC_BF_BG_COLOR); // 设置字体颜色为白色，背景为黑色
-    func_bf.setTextSize(1);                     // 设置字体大小
+    func_bf.createSprite(160, 160); // 小缓冲区大小为 160x80
+    func_bf.setTextColor(FUNC_BF_FG_COLOR, FUNC_BF_BG_COLOR);
+    func_bf.setTextSize(1);
 
     // 初始化高亮框位置
     highlightY = 10 + currentMenuItem * 20;
-
     // 初始化宽度
     currentWidth = 0;
     targetWidth = 0;
@@ -181,7 +217,7 @@ void Menu_Tick(void)
     }
 }
 // ====================================
-//             上拉过场动画
+//   上拉过场动画， 效果不太好， 需要修改
 // ====================================
 // 初始位置设置为屏幕上方
 int startX = 40;       // 目标 x 坐标
@@ -195,7 +231,7 @@ void func_bf_SwitchAnimate(void)
     {
         func_bf.fillSprite(FUNC_BF_BG_COLOR); // 清屏
         func_bf.setCursor(1, 1);
-        func_bf.printf("Example Function");   // 显示初始内容
+        func_bf.printf("Example Function");   // 显示示例内容
         func_bf.pushSprite(startX, currentY); // 更新小缓冲区位置
         // 更新 y 坐标
         currentY -= 2; // 每次移动 1 像素
@@ -227,10 +263,24 @@ void Draw_Menu(void)
         int yPos = 10 + i * 20; // 根据可见位置计算Y坐标
         // 绘制菜单文本
         const char *name = (currentMenuLevel == 0) ? menuItems[itemIndex].name : currentMenu->subMenu[itemIndex].name;
-        if ((currentMenuLevel == 0) ? menuItems[itemIndex].isTitle : currentMenu->subMenu[itemIndex].isTitle)
+        switch ((currentMenuLevel == 0) ? menuItems[itemIndex].titleClass : currentMenu->subMenu[itemIndex].titleClass)
+        {
+        case PRIMARY:
             bf.setTextColor(TFT_PURPLE, TFT_DARKGREY);
-        else
+            break;
+        case SECONDARY:
+            break;
+        case NORMAL_TEXT:
             bf.setTextColor(BF_FG_COLOR, BF_BG_COLOR);
+            break;
+        case SYS_FUNC_TEXT:
+            bf.setTextColor(TFT_WHITE, TFT_PURPLE);
+            break;
+        default:
+            bf.setTextColor(BF_FG_COLOR, BF_BG_COLOR);
+            break;
+        }
+
         bf.drawString(name, 10, yPos);
     }
     // 计算目标宽度
@@ -271,7 +321,7 @@ void Draw_Menu(void)
     else
     {
         isHighlightStable = true;
-    } // 已经稳定
+    }
     // 绘制高亮框
     bf.drawRoundRect(9, highlightY, currentWidth, 17, 2, TFT_RED);
     bf.drawRoundRect(8, highlightY - 1, currentWidth, 19, 2, TFT_RED);
@@ -304,12 +354,10 @@ void Menu_Handle_Input()
         }
         // 滚动逻辑：当目标项超出可见区域时调整起始索引
         if (targetMenuItem >= startIndex + maxVisibleItems)
-        {
             startIndex = targetMenuItem - maxVisibleItems + 1;
-        }
     }
     // 检测 UP_PIN 是否被按下
-    if (getKeyState(UP_PIN) == KEY_PRESS || getKeyState(UP_PIN) == KEY_LONG_PRESS)
+    else if (getKeyState(UP_PIN) == KEY_PRESS || getKeyState(UP_PIN) == KEY_LONG_PRESS)
     {
         targetMenuItem--;
         if (targetMenuItem < 0)
@@ -320,12 +368,10 @@ void Menu_Handle_Input()
 
         // 滚动逻辑：当目标项在可见区域上方时调整起始索引
         if (targetMenuItem < startIndex)
-        {
             startIndex = targetMenuItem;
-        }
     }
     // 检测 ENTER_PIN 是否被按下
-    if (getKeyState(ENTER_PIN) == KEY_PRESS)
+    else if (getKeyState(ENTER_PIN) == KEY_PRESS)
     {
         if (currentMenuLevel == 0 && menuItems[targetMenuItem].subMenu != NULL)
         {
@@ -343,16 +389,12 @@ void Menu_Handle_Input()
             if (currentMenuLevel == 0)
             {
                 if (menuItems[targetMenuItem].function != NULL)
-                {
                     menuItems[targetMenuItem].function();
-                }
             }
             else
             {
                 if (currentMenu->subMenu[targetMenuItem].function != NULL)
-                {
                     currentMenu->subMenu[targetMenuItem].function();
-                }
             }
         }
     }
@@ -403,15 +445,18 @@ void about(void)
         func_bf.drawRect(0, 0, 160, 160, TFT_GREEN);
         func_bf.drawRect(1, 1, 158, 158, TFT_GREEN);
         /*USER CODE BEGIN*/
-        func_bf.drawString("Version:0.1.0", 3, 5);
-        func_bf.drawString("Author:Wang Mingzhao-AUST", 3, 15);
-        func_bf.drawString("Date:2025/3/8", 3, 25);
+        func_bf.setTextColor(TFT_RED);
+        func_bf.drawString(F("LiteMenu Core"), 3, 5);
+        func_bf.setTextColor(FUNC_BF_FG_COLOR);
+        func_bf.drawString(F("Version: 0.2.0"), 10, 15);
+        func_bf.drawString(F("Author:Wang Mingzhao-AUST"), 3, 25);
+        func_bf.drawString(F("Date:2025/4/24"), 3, 35);
         /*USER CODE END*/
         func_bf.pushSprite(startX, targetY); // 固定在目标位置
         if (getKeyState(ENTER_PIN) == KEY_PRESS)
             break;
     }
-    func_bf.fillSprite(TFT_BLACK); // 清空小缓冲区
+    func_bf.fillSprite(TFT_BLACK); // 清空但不注销小缓冲区
 }
 
 void BLK_config()

@@ -90,7 +90,7 @@
 #include <menu.h>
 
 void setup()
-{
+{   
     pinMode(7, OUTPUT);
     pinMode(10, OUTPUT);
     digitalWrite(7, LOW);
@@ -104,4 +104,5 @@ void setup()
 void loop()
 {
     Menu_Handle_Input();
+    printf("Free heap size: %d bytes\n", heap_caps_get_free_size(MALLOC_CAP_8BIT));
 }

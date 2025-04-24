@@ -7,8 +7,6 @@
 
 #include <Arduino.h>
 
-PROGMEM void avoidObstaclesGame();
-
 /// @brief 控制BY5002的音量
 void Volume();
 

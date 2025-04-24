@@ -1,6 +1,7 @@
 #include "key.h"
 #include "Ticker.h"
-Ticker KeyTick;
+hw_timer_s *KeyTickTimer = NULL; // 硬件定时器
+Ticker KeyTick; // 软件定时器
 #define DEBOUNCE_DELAY 15 // 消抖时间（毫秒）
 // 管理输入引脚
 DebounceInfo pins[] = {
@@ -36,7 +37,12 @@ void Key_Init(void)
     {
         pinMode(pins[i].pin, INPUT_PULLUP); // 设置为输入模式，启用内部上拉电阻
     }
-    KeyTick.attach(0.02, Key_Tick); // 设置定时器，每20毫秒执行一次Key_Tick()
+    // 用硬件定时器还是软件定时器自己看
+    KeyTickTimer = timerBegin(0, 80, true);
+    timerAttachInterrupt(KeyTickTimer, Key_Tick, true);
+    timerAlarmWrite(KeyTickTimer, 0.01*1000000, true);// 0.01 * 1000000us = 0.01s = 10ms
+    timerAlarmEnable(KeyTickTimer);
+    //KeyTick.attach(0.02, Key_Tick); // 设置定时器，每20毫秒执行一次Key_Tick()
 }
 
 // 更新按键状态
