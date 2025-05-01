@@ -1,4 +1,4 @@
-# ESP32C SuperMini TFT Menu System
+# ESP32C3 SuperMini TFT Menu
 
 一个基于Arduino固件的嵌入式菜单系统（测试性，随心情开发中），目前只支持二级菜单导航、平滑动画和交互式控制，适用于ESP32C3等微控制器平台。
 （要是我有ESP32S3 Mini的话，我会选用至少2.8寸的LCD屏，使用8MB的PSRAM）
